@@ -10,7 +10,7 @@ type TrainingChatWorkspaceProps = {
   messages: TopicChatMessage[];
   sending: boolean;
   onSend: (message: string) => Promise<void>;
-  onDelete: () => Promise<void>;
+  onDelete?: () => Promise<void>;
 };
 
 function renderMarkdown(value: string) {
@@ -81,14 +81,16 @@ export function TrainingChatWorkspace({ topic, messages, sending, onSend, onDele
             <span>{messages.length} saved messages</span>
           </div>
         </div>
-        <Button
-          variant="danger"
-          onClick={() => {
-            if (window.confirm('Delete this knowledge conversation?\n\nThis action cannot be undone.')) void onDelete();
-          }}
-        >
-          <Trash2 size={16} /> Delete
-        </Button>
+        {onDelete && (
+          <Button
+            variant="danger"
+            onClick={() => {
+              if (window.confirm('Delete this knowledge conversation?\n\nThis action cannot be undone.')) void onDelete();
+            }}
+          >
+            <Trash2 size={16} /> Delete
+          </Button>
+        )}
       </header>
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto bg-gradient-to-b from-background to-card p-5">

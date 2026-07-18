@@ -32,11 +32,9 @@ When Supabase environment variables are present, the app stores topic conversati
 
 When deployed on Vercel, the training website stays available without keeping a local computer on. Vercel serves the React app, and Supabase stores categories, topics, and chat messages.
 
-Training data is shared through Supabase only when all of these are true:
+Training data is shared through Supabase when `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are configured in the hosting environment. The workspace runs in public training mode, so anyone with the website link can create training topics and add messages.
 
-- `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are configured in the hosting environment.
-- The user signs in with GitHub through Supabase Auth.
-- The signed-in user's UUID exists in `public.admin_profiles`.
+Public training mode intentionally does not require GitHub login. Delete is hidden in the UI and the public Supabase policy does not allow deleting topics or messages.
 
 Thai and English training content are both supported. Supabase `text` columns store Unicode content, and the assistant draft generator replies in Thai when the admin prompt or recent conversation uses Thai.
 
@@ -52,30 +50,13 @@ VITE_SUPABASE_URL=https://your-project-ref.supabase.co
 VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
 ```
 
-5. Open Authentication > Providers > GitHub and enable GitHub OAuth.
-6. Add this local redirect URL in Supabase Auth settings:
-
-```text
-http://127.0.0.1:5173
-```
-
-7. Start the workspace:
+5. Start the workspace:
 
 ```bash
 npm run dev
 ```
 
-8. Sign in with GitHub once, then add that user as an admin from SQL Editor.
-
-Use the authenticated user's UUID from Authentication > Users:
-
-```sql
-insert into public.admin_profiles (user_id, role)
-values ('PASTE_AUTH_USER_UUID_HERE', 'admin')
-on conflict (user_id) do update set role = 'admin';
-```
-
-After the admin row exists, refresh the local site and the training topics will read and write through Supabase.
+GitHub OAuth can remain enabled in Supabase for future admin-only features, but this public training workspace does not use it.
 
 ## Environment
 

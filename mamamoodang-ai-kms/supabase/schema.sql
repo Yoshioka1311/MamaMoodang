@@ -61,6 +61,8 @@ create index if not exists chat_messages_topic_created_idx
 create or replace function public.touch_knowledge_topic()
 returns trigger
 language plpgsql
+security definer
+set search_path = public
 as $$
 begin
   update public.knowledge_topics
@@ -94,9 +96,9 @@ as $$
 $$;
 
 grant usage on schema public to anon, authenticated;
-grant select, insert, update, delete on public.knowledge_categories to authenticated;
-grant select, insert, update, delete on public.knowledge_topics to authenticated;
-grant select, insert, update, delete on public.chat_messages to authenticated;
+grant select on public.knowledge_categories to anon, authenticated;
+grant select, insert, update on public.knowledge_topics to anon, authenticated;
+grant select, insert on public.chat_messages to anon, authenticated;
 grant select, insert, update, delete on public.admin_profiles to authenticated;
 
 drop policy if exists "admin read categories" on public.knowledge_categories;
@@ -105,26 +107,32 @@ drop policy if exists "admin read topics" on public.knowledge_topics;
 drop policy if exists "admin write topics" on public.knowledge_topics;
 drop policy if exists "admin read messages" on public.chat_messages;
 drop policy if exists "admin write messages" on public.chat_messages;
+drop policy if exists "public read categories" on public.knowledge_categories;
+drop policy if exists "public read topics" on public.knowledge_topics;
+drop policy if exists "public create topics" on public.knowledge_topics;
+drop policy if exists "public update topics" on public.knowledge_topics;
+drop policy if exists "public read messages" on public.chat_messages;
+drop policy if exists "public create messages" on public.chat_messages;
 drop policy if exists "admin read own profile" on public.admin_profiles;
 drop policy if exists "admin manage profiles" on public.admin_profiles;
 
-create policy "admin read categories" on public.knowledge_categories
-  for select using (public.is_admin());
+create policy "public read categories" on public.knowledge_categories
+  for select using (true);
 
-create policy "admin write categories" on public.knowledge_categories
-  for all using (public.is_admin()) with check (public.is_admin());
+create policy "public read topics" on public.knowledge_topics
+  for select using (true);
 
-create policy "admin read topics" on public.knowledge_topics
-  for select using (public.is_admin());
+create policy "public create topics" on public.knowledge_topics
+  for insert with check (true);
 
-create policy "admin write topics" on public.knowledge_topics
-  for all using (public.is_admin()) with check (public.is_admin());
+create policy "public update topics" on public.knowledge_topics
+  for update using (true) with check (true);
 
-create policy "admin read messages" on public.chat_messages
-  for select using (public.is_admin());
+create policy "public read messages" on public.chat_messages
+  for select using (true);
 
-create policy "admin write messages" on public.chat_messages
-  for all using (public.is_admin()) with check (public.is_admin());
+create policy "public create messages" on public.chat_messages
+  for insert with check (true);
 
 create policy "admin read own profile" on public.admin_profiles
   for select using (user_id = auth.uid() or public.is_admin());

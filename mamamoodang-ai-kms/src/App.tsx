@@ -1,7 +1,5 @@
-import type { Session } from '@supabase/supabase-js';
-import { BrainCircuit, LogOut, Moon, ShieldCheck, Sun } from 'lucide-react';
+import { BrainCircuit, Moon, ShieldCheck, Sun } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { AuthShell } from './components/AuthShell';
 import { NewKnowledgeDialog } from './components/NewKnowledgeDialog';
 import { TrainingChatWorkspace } from './components/TrainingChatWorkspace';
 import { TrainingTopicList } from './components/TrainingTopicList';
@@ -16,10 +14,6 @@ export default function App() {
   const repository = useMemo(() => createTrainingRepository(supabase), [supabase]);
   const supabaseEnabled = Boolean(supabase);
 
-  const [previewAuthenticated, setPreviewAuthenticated] = useState(false);
-  const [authReady, setAuthReady] = useState(!supabaseEnabled);
-  const [authError, setAuthError] = useState('');
-  const [session, setSession] = useState<Session | null>(null);
   const [darkMode, setDarkMode] = useState(false);
   const [filters, setFilters] = useState<TopicFilters>({ query: '', categoryId: '' });
   const [categories, setCategories] = useState<KnowledgeCategory[]>([]);
@@ -32,54 +26,10 @@ export default function App() {
   const [loadError, setLoadError] = useState('');
 
   const topicCountLabel = useMemo(() => `${topics.length} training ${topics.length === 1 ? 'topic' : 'topics'}`, [topics.length]);
-  const authenticated = supabaseEnabled ? Boolean(session) : previewAuthenticated;
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode);
   }, [darkMode]);
-
-  useEffect(() => {
-    if (!supabase) return;
-
-    let active = true;
-    void supabase.auth.getSession().then(({ data, error }) => {
-      if (!active) return;
-      if (error) setAuthError(error.message);
-      setSession(data.session);
-      setAuthReady(true);
-    });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession);
-      setAuthReady(true);
-      setAuthError('');
-    });
-
-    return () => {
-      active = false;
-      subscription.unsubscribe();
-    };
-  }, [supabase]);
-
-  async function signInWithGitHub() {
-    if (!supabase) return;
-    setAuthError('');
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'github',
-      options: { redirectTo: window.location.origin },
-    });
-    if (error) setAuthError(error.message);
-  }
-
-  async function signOut() {
-    if (!supabase) return;
-    await supabase.auth.signOut();
-    setSelectedId(null);
-    setSelectedTopic(null);
-    setMessages([]);
-  }
 
   async function refreshTopics(nextSelectedId = selectedId) {
     try {
@@ -126,12 +76,12 @@ export default function App() {
   }
 
   useEffect(() => {
-    if (authenticated) void refreshTopics();
-  }, [authenticated, filters]);
+    void refreshTopics();
+  }, [filters]);
 
   useEffect(() => {
-    if (authenticated) void refreshConversation(selectedId);
-  }, [authenticated, selectedId]);
+    void refreshConversation(selectedId);
+  }, [selectedId]);
 
   async function createTopic(title: string, categoryId: string) {
     try {
@@ -142,19 +92,6 @@ export default function App() {
       await refreshConversation(topic.id);
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : 'Unable to create this topic.');
-    }
-  }
-
-  async function deleteSelectedTopic() {
-    if (!selectedTopic) return;
-    try {
-      await repository.deleteTopic(selectedTopic.id);
-      setSelectedId(null);
-      setSelectedTopic(null);
-      setMessages([]);
-      await refreshTopics(null);
-    } catch (error) {
-      setLoadError(error instanceof Error ? error.message : 'Unable to delete this topic.');
     }
   }
 
@@ -181,18 +118,6 @@ export default function App() {
     }
   }
 
-  if (!authenticated || !authReady) {
-    return (
-      <AuthShell
-        mode={supabaseEnabled ? 'supabase' : 'preview'}
-        loading={!authReady}
-        error={authError}
-        onEnter={() => setPreviewAuthenticated(true)}
-        onGitHubSignIn={signInWithGitHub}
-      />
-    );
-  }
-
   return (
     <main className="min-h-screen bg-background px-4 py-5 text-foreground lg:px-6">
       <div className="mx-auto flex max-w-[1680px] flex-col gap-5">
@@ -208,11 +133,9 @@ export default function App() {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            {session?.user.email && (
-              <div className="rounded-full border border-border bg-background px-4 py-2 text-sm font-semibold text-muted-foreground">
-                {session.user.email}
-              </div>
-            )}
+            <div className="rounded-full border border-border bg-background px-4 py-2 text-sm font-semibold text-muted-foreground">
+              {supabaseEnabled ? 'Supabase shared storage' : 'Browser preview storage'}
+            </div>
             <div className="flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm font-semibold text-muted-foreground">
               <BrainCircuit size={16} className="text-primary" /> {topicCountLabel}
             </div>
@@ -220,12 +143,6 @@ export default function App() {
               {darkMode ? <Sun size={16} /> : <Moon size={16} />}
               {darkMode ? 'Light' : 'Dark'}
             </Button>
-            {supabase && (
-              <Button variant="secondary" onClick={signOut}>
-                <LogOut size={16} />
-                Sign out
-              </Button>
-            )}
           </div>
         </header>
 
@@ -250,7 +167,6 @@ export default function App() {
             messages={messages}
             sending={sending}
             onSend={sendMessage}
-            onDelete={deleteSelectedTopic}
           />
         </div>
       </div>
