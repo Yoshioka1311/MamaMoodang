@@ -36,13 +36,25 @@ create table if not exists public.admin_profiles (
 
 insert into public.knowledge_categories (id, name, description)
 values
+  ('00000000-0000-0000-0000-000000000102', 'Nutrition Guide', 'GI, meal swaps, portion planning, and daily nutrition support.'),
+  ('00000000-0000-0000-0000-000000000104', 'Climate Warnings', 'PM2.5, heat index, hydration, and pregnancy weather safety.'),
+  ('00000000-0000-0000-0000-000000000107', 'Maternal Routines', 'Pregnancy routines, walking rhythm, hydration, sleep, and daily care habits.'),
+  ('00000000-0000-0000-0000-000000000108', 'Exercise', 'Safe movement, post-meal walks, activity limits, and escalation signs.'),
+  ('00000000-0000-0000-0000-000000000109', 'Medication', 'Medication education, insulin questions, glucose targets, and care-team follow-up.'),
+  ('00000000-0000-0000-0000-000000000110', 'FAQ', 'Common user questions and safe, short Buddy answers.'),
   ('00000000-0000-0000-0000-000000000101', 'Gestational Diabetes', 'Core GDM guidance and safety boundaries.'),
-  ('00000000-0000-0000-0000-000000000102', 'Nutrition', 'Food, meal planning, GI, and daily nutrition support.'),
-  ('00000000-0000-0000-0000-000000000103', 'Mental Health', 'Emotional support and non-diagnostic coping guidance.'),
-  ('00000000-0000-0000-0000-000000000104', 'Environmental Health', 'PM2.5, heat index, hydration, and safety messaging.'),
+  ('00000000-0000-0000-0000-000000000111', 'Glucose Tracking', 'Fasting, post-meal, bedtime readings, targets, trends, and alerts.'),
+  ('00000000-0000-0000-0000-000000000112', 'Meal & Nutrition Logs', 'Food diary entries, carb and sugar summaries, and glucose-linked meal patterns.'),
+  ('00000000-0000-0000-0000-000000000103', 'Mood Check-in', 'Emotional support, mood logging, and non-diagnostic coping guidance.'),
   ('00000000-0000-0000-0000-000000000105', 'Buddy Personality', 'Tone, companion behavior, and chatbot style rules.'),
+  ('00000000-0000-0000-0000-000000000113', 'Buddy Cafe & Rewards', 'Mini-game behavior, rewards, coins, streaks, shop, and customization.'),
+  ('00000000-0000-0000-0000-000000000114', 'Reports & Analytics', 'Medical analytics, trend summaries, and doctor-friendly reports.'),
+  ('00000000-0000-0000-0000-000000000115', 'Profile & Settings', 'Personal details, pregnancy profile, reminders, privacy, and settings copy.'),
   ('00000000-0000-0000-0000-000000000106', 'System Prompts', 'Internal prompts, safety policies, and response constraints.')
-on conflict (id) do nothing;
+on conflict (id) do update
+set name = excluded.name,
+    description = excluded.description,
+    updated_at = now();
 
 drop index if exists public.knowledge_topics_search_idx;
 drop index if exists public.chat_messages_search_idx;

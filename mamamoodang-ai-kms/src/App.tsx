@@ -4,6 +4,7 @@ import { NewKnowledgeDialog } from './components/NewKnowledgeDialog';
 import { TrainingChatWorkspace } from './components/TrainingChatWorkspace';
 import { TrainingTopicList } from './components/TrainingTopicList';
 import { Button } from './components/ui/Button';
+import { categories as fallbackCategories } from './data/seed';
 import { createTrainingRepository } from './repositories/createTrainingRepository';
 import { createSupabaseBrowserClient } from './repositories/supabaseTrainingRepository';
 import { generateTrainingResponse } from './services/trainingAssistant';
@@ -35,7 +36,7 @@ export default function App() {
     try {
       setLoadError('');
       const [nextCategories, nextTopics] = await Promise.all([repository.listCategories(), repository.listTopics(filters)]);
-      setCategories(nextCategories);
+      setCategories(nextCategories.length ? nextCategories : fallbackCategories);
       setTopics(nextTopics);
 
       if (!nextSelectedId && nextTopics[0]) {

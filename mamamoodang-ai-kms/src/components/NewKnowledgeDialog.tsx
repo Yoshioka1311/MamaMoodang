@@ -1,5 +1,5 @@
 import type { FormEvent } from 'react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { KnowledgeCategory } from '../types/knowledge';
 import { Button } from './ui/Button';
 import { Input, Label, Select } from './ui/Field';
@@ -15,9 +15,13 @@ export function NewKnowledgeDialog({ categories, onCancel, onCreate }: NewKnowle
   const [categoryId, setCategoryId] = useState(categories[0]?.id ?? '');
   const [creating, setCreating] = useState(false);
 
+  useEffect(() => {
+    if (!categoryId && categories[0]) setCategoryId(categories[0].id);
+  }, [categories, categoryId]);
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!title.trim()) return;
+    if (!title.trim() || !categoryId) return;
     setCreating(true);
     await onCreate(title.trim(), categoryId);
     setCreating(false);
@@ -39,7 +43,7 @@ export function NewKnowledgeDialog({ categories, onCancel, onCreate }: NewKnowle
           </div>
           <div className="space-y-1.5">
             <Label>Category</Label>
-            <Select value={categoryId} onChange={(event) => setCategoryId(event.target.value)}>
+            <Select value={categoryId} onChange={(event) => setCategoryId(event.target.value)} disabled={!categories.length}>
               {categories.map((category) => (
                 <option key={category.id} value={category.id}>
                   {category.name}
@@ -53,7 +57,7 @@ export function NewKnowledgeDialog({ categories, onCancel, onCreate }: NewKnowle
           <Button type="button" variant="secondary" onClick={onCancel}>
             Cancel
           </Button>
-          <Button type="submit" disabled={!title.trim() || creating}>
+          <Button type="submit" disabled={!title.trim() || !categoryId || creating}>
             Create
           </Button>
         </div>
