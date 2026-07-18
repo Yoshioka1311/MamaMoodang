@@ -3,6 +3,7 @@
 *.log
 *.pyc
 *.swp
+*.tsbuildinfo
 .DS_Store
 .atom/
 .build/
@@ -32,6 +33,27 @@ migrate_working_dir/
 .pub/
 /build/
 /coverage/
+.mama_moodeng_web.pid
+**/node_modules/
+**/dist/
+
+# Local environment and secrets
+.env
+.env.*
+*.local
+*.secret
+*.key
+*.pem
+
+# Editor and workspace files
+.vscode/
+.vs/
+.fleet/
+.zed/
+*.tmp
+*.temp
+*.bak
+*.orig
 
 # Symbolication related
 app.*.symbols
