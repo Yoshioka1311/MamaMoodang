@@ -28,6 +28,18 @@ Apply `supabase/schema.sql` to a Supabase PostgreSQL project. The schema uses:
 
 When Supabase environment variables are present, the app stores topic conversations in Supabase. Without credentials, it falls back to seeded browser storage so the workspace can be tested locally.
 
+## Hosting and data storage
+
+When deployed on Vercel, the training website stays available without keeping a local computer on. Vercel serves the React app, and Supabase stores categories, topics, and chat messages.
+
+Training data is shared through Supabase only when all of these are true:
+
+- `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are configured in the hosting environment.
+- The user signs in with GitHub through Supabase Auth.
+- The signed-in user's UUID exists in `public.admin_profiles`.
+
+Thai and English training content are both supported. Supabase `text` columns store Unicode content, and the assistant draft generator replies in Thai when the admin prompt or recent conversation uses Thai.
+
 ## Supabase setup checklist
 
 1. Create a Supabase project.

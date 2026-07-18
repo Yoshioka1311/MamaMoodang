@@ -98,7 +98,7 @@ export function TrainingChatWorkspace({ topic, messages, sending, onSend, onDele
               <Sparkles className="mx-auto text-primary" size={24} />
               <h3 className="mt-3 text-xl font-bold">Start chatting to train this topic</h3>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                Try: Expand this topic, generate FAQs, create Buddy responses, simplify for patients, or convert this into chatbot knowledge.
+                Try Thai or English prompts: summarize this topic, create FAQs, write Buddy responses, simplify for patients, or convert this into chatbot knowledge.
               </p>
             </div>
           )}
@@ -144,7 +144,7 @@ export function TrainingChatWorkspace({ topic, messages, sending, onSend, onDele
           <textarea
             className="max-h-40 min-h-12 flex-1 resize-none bg-transparent px-4 py-3 text-sm leading-6 text-foreground outline-none placeholder:text-muted-foreground"
             value={draft}
-            placeholder="Message the medical knowledge AI..."
+            placeholder="Message the medical knowledge AI in Thai or English..."
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === 'Enter' && !event.shiftKey) {
