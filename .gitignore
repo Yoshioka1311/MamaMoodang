@@ -34,12 +34,14 @@ migrate_working_dir/
 /build/
 /coverage/
 .mama_moodeng_web.pid
+.mamamoodang_kms.pid
 **/node_modules/
 **/dist/
 
 # Local environment and secrets
 .env
 .env.*
+!**/.env.example
 *.local
 *.secret
 *.key

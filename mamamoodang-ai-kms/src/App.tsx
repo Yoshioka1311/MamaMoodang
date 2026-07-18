@@ -1,4 +1,5 @@
-import { BrainCircuit, Moon, ShieldCheck, Sun } from 'lucide-react';
+import type { Session } from '@supabase/supabase-js';
+import { BrainCircuit, LogOut, Moon, ShieldCheck, Sun } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { AuthShell } from './components/AuthShell';
 import { NewKnowledgeDialog } from './components/NewKnowledgeDialog';
@@ -6,13 +7,19 @@ import { TrainingChatWorkspace } from './components/TrainingChatWorkspace';
 import { TrainingTopicList } from './components/TrainingTopicList';
 import { Button } from './components/ui/Button';
 import { createTrainingRepository } from './repositories/createTrainingRepository';
+import { createSupabaseBrowserClient } from './repositories/supabaseTrainingRepository';
 import { generateTrainingResponse } from './services/trainingAssistant';
 import type { KnowledgeCategory, KnowledgeTopic, TopicChatMessage, TopicFilters } from './types/knowledge';
 
-const repository = createTrainingRepository();
-
 export default function App() {
-  const [authenticated, setAuthenticated] = useState(false);
+  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  const repository = useMemo(() => createTrainingRepository(supabase), [supabase]);
+  const supabaseEnabled = Boolean(supabase);
+
+  const [previewAuthenticated, setPreviewAuthenticated] = useState(false);
+  const [authReady, setAuthReady] = useState(!supabaseEnabled);
+  const [authError, setAuthError] = useState('');
+  const [session, setSession] = useState<Session | null>(null);
   const [darkMode, setDarkMode] = useState(false);
   const [filters, setFilters] = useState<TopicFilters>({ query: '', categoryId: '' });
   const [categories, setCategories] = useState<KnowledgeCategory[]>([]);
@@ -22,25 +29,79 @@ export default function App() {
   const [messages, setMessages] = useState<TopicChatMessage[]>([]);
   const [newDialogOpen, setNewDialogOpen] = useState(false);
   const [sending, setSending] = useState(false);
+  const [loadError, setLoadError] = useState('');
 
   const topicCountLabel = useMemo(() => `${topics.length} training ${topics.length === 1 ? 'topic' : 'topics'}`, [topics.length]);
+  const authenticated = supabaseEnabled ? Boolean(session) : previewAuthenticated;
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode);
   }, [darkMode]);
 
+  useEffect(() => {
+    if (!supabase) return;
+
+    let active = true;
+    void supabase.auth.getSession().then(({ data, error }) => {
+      if (!active) return;
+      if (error) setAuthError(error.message);
+      setSession(data.session);
+      setAuthReady(true);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession);
+      setAuthReady(true);
+      setAuthError('');
+    });
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
+  }, [supabase]);
+
+  async function signInWithGitHub() {
+    if (!supabase) return;
+    setAuthError('');
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'github',
+      options: { redirectTo: window.location.origin },
+    });
+    if (error) setAuthError(error.message);
+  }
+
+  async function signOut() {
+    if (!supabase) return;
+    await supabase.auth.signOut();
+    setSelectedId(null);
+    setSelectedTopic(null);
+    setMessages([]);
+  }
+
   async function refreshTopics(nextSelectedId = selectedId) {
-    const [nextCategories, nextTopics] = await Promise.all([repository.listCategories(), repository.listTopics(filters)]);
-    setCategories(nextCategories);
-    setTopics(nextTopics);
+    try {
+      setLoadError('');
+      const [nextCategories, nextTopics] = await Promise.all([repository.listCategories(), repository.listTopics(filters)]);
+      setCategories(nextCategories);
+      setTopics(nextTopics);
 
-    if (!nextSelectedId && nextTopics[0]) {
-      setSelectedId(nextTopics[0].id);
-      return;
-    }
+      if (!nextSelectedId && nextTopics[0]) {
+        setSelectedId(nextTopics[0].id);
+        return;
+      }
 
-    if (nextSelectedId && !nextTopics.some((topic) => topic.id === nextSelectedId)) {
-      setSelectedId(nextTopics[0]?.id ?? null);
+      if (nextSelectedId && !nextTopics.some((topic) => topic.id === nextSelectedId)) {
+        setSelectedId(nextTopics[0]?.id ?? null);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to load Supabase training data.';
+      setLoadError(message);
+      setCategories([]);
+      setTopics([]);
+      setSelectedId(null);
     }
   }
 
@@ -51,56 +112,85 @@ export default function App() {
       return;
     }
 
-    const [topic, nextMessages] = await Promise.all([repository.getTopic(topicId), repository.listMessages(topicId)]);
-    setSelectedTopic(topic);
-    setMessages(nextMessages);
+    try {
+      setLoadError('');
+      const [topic, nextMessages] = await Promise.all([repository.getTopic(topicId), repository.listMessages(topicId)]);
+      setSelectedTopic(topic);
+      setMessages(nextMessages);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to load this training conversation.';
+      setLoadError(message);
+      setSelectedTopic(null);
+      setMessages([]);
+    }
   }
 
   useEffect(() => {
-    void refreshTopics();
-  }, [filters]);
+    if (authenticated) void refreshTopics();
+  }, [authenticated, filters]);
 
   useEffect(() => {
-    void refreshConversation(selectedId);
-  }, [selectedId]);
+    if (authenticated) void refreshConversation(selectedId);
+  }, [authenticated, selectedId]);
 
   async function createTopic(title: string, categoryId: string) {
-    const topic = await repository.createTopic(title, categoryId);
-    setNewDialogOpen(false);
-    setSelectedId(topic.id);
-    await refreshTopics(topic.id);
-    await refreshConversation(topic.id);
+    try {
+      const topic = await repository.createTopic(title, categoryId);
+      setNewDialogOpen(false);
+      setSelectedId(topic.id);
+      await refreshTopics(topic.id);
+      await refreshConversation(topic.id);
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : 'Unable to create this topic.');
+    }
   }
 
   async function deleteSelectedTopic() {
     if (!selectedTopic) return;
-    await repository.deleteTopic(selectedTopic.id);
-    setSelectedId(null);
-    setSelectedTopic(null);
-    setMessages([]);
-    await refreshTopics(null);
+    try {
+      await repository.deleteTopic(selectedTopic.id);
+      setSelectedId(null);
+      setSelectedTopic(null);
+      setMessages([]);
+      await refreshTopics(null);
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : 'Unable to delete this topic.');
+    }
   }
 
   async function sendMessage(message: string) {
     if (!selectedTopic || sending) return;
 
     setSending(true);
-    const userMessage = await repository.addMessage(selectedTopic.id, 'user', message);
-    const historyAfterUser = [...messages, userMessage];
-    setMessages(historyAfterUser);
+    try {
+      const userMessage = await repository.addMessage(selectedTopic.id, 'user', message);
+      const historyAfterUser = [...messages, userMessage];
+      setMessages(historyAfterUser);
 
-    const response = generateTrainingResponse(selectedTopic, historyAfterUser, message);
-    await new Promise((resolve) => window.setTimeout(resolve, 450));
-    const assistantMessage = await repository.addMessage(selectedTopic.id, 'assistant', response);
-    setMessages([...historyAfterUser, assistantMessage]);
-    setSending(false);
+      const response = generateTrainingResponse(selectedTopic, historyAfterUser, message);
+      await new Promise((resolve) => window.setTimeout(resolve, 450));
+      const assistantMessage = await repository.addMessage(selectedTopic.id, 'assistant', response);
+      setMessages([...historyAfterUser, assistantMessage]);
 
-    await refreshTopics(selectedTopic.id);
-    await refreshConversation(selectedTopic.id);
+      await refreshTopics(selectedTopic.id);
+      await refreshConversation(selectedTopic.id);
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : 'Unable to save this message.');
+    } finally {
+      setSending(false);
+    }
   }
 
-  if (!authenticated) {
-    return <AuthShell onEnter={() => setAuthenticated(true)} />;
+  if (!authenticated || !authReady) {
+    return (
+      <AuthShell
+        mode={supabaseEnabled ? 'supabase' : 'preview'}
+        loading={!authReady}
+        error={authError}
+        onEnter={() => setPreviewAuthenticated(true)}
+        onGitHubSignIn={signInWithGitHub}
+      />
+    );
   }
 
   return (
@@ -118,6 +208,11 @@ export default function App() {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
+            {session?.user.email && (
+              <div className="rounded-full border border-border bg-background px-4 py-2 text-sm font-semibold text-muted-foreground">
+                {session.user.email}
+              </div>
+            )}
             <div className="flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm font-semibold text-muted-foreground">
               <BrainCircuit size={16} className="text-primary" /> {topicCountLabel}
             </div>
@@ -125,8 +220,20 @@ export default function App() {
               {darkMode ? <Sun size={16} /> : <Moon size={16} />}
               {darkMode ? 'Light' : 'Dark'}
             </Button>
+            {supabase && (
+              <Button variant="secondary" onClick={signOut}>
+                <LogOut size={16} />
+                Sign out
+              </Button>
+            )}
           </div>
         </header>
+
+        {loadError && (
+          <div className="rounded-2xl border border-destructive/30 bg-destructive/10 px-5 py-4 text-sm font-semibold text-destructive">
+            {loadError}
+          </div>
+        )}
 
         <div className="grid gap-5 xl:grid-cols-[420px_minmax(0,1fr)]">
           <TrainingTopicList

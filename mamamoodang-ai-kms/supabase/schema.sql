@@ -1,4 +1,5 @@
 create extension if not exists "pgcrypto";
+create extension if not exists "pg_trgm";
 
 create table if not exists public.knowledge_categories (
   id uuid primary key default gen_random_uuid(),
@@ -43,15 +44,16 @@ values
   ('00000000-0000-0000-0000-000000000106', 'System Prompts', 'Internal prompts, safety policies, and response constraints.')
 on conflict (id) do nothing;
 
-create index if not exists knowledge_topics_search_idx
+drop index if exists public.knowledge_topics_search_idx;
+drop index if exists public.chat_messages_search_idx;
+
+create index if not exists knowledge_topics_title_search_idx
   on public.knowledge_topics
-  using gin (
-    to_tsvector('english', title || ' ' || array_to_string(keywords, ' '))
-  );
+  using gin (title gin_trgm_ops);
 
 create index if not exists chat_messages_search_idx
   on public.chat_messages
-  using gin (to_tsvector('english', message));
+  using gin (message gin_trgm_ops);
 
 create index if not exists chat_messages_topic_created_idx
   on public.chat_messages (topic_id, created_at);
@@ -81,6 +83,8 @@ alter table public.admin_profiles enable row level security;
 create or replace function public.is_admin()
 returns boolean
 language sql
+security definer
+set search_path = public
 stable
 as $$
   select exists (
@@ -88,6 +92,21 @@ as $$
     where user_id = auth.uid() and role in ('admin', 'reviewer')
   );
 $$;
+
+grant usage on schema public to anon, authenticated;
+grant select, insert, update, delete on public.knowledge_categories to authenticated;
+grant select, insert, update, delete on public.knowledge_topics to authenticated;
+grant select, insert, update, delete on public.chat_messages to authenticated;
+grant select, insert, update, delete on public.admin_profiles to authenticated;
+
+drop policy if exists "admin read categories" on public.knowledge_categories;
+drop policy if exists "admin write categories" on public.knowledge_categories;
+drop policy if exists "admin read topics" on public.knowledge_topics;
+drop policy if exists "admin write topics" on public.knowledge_topics;
+drop policy if exists "admin read messages" on public.chat_messages;
+drop policy if exists "admin write messages" on public.chat_messages;
+drop policy if exists "admin read own profile" on public.admin_profiles;
+drop policy if exists "admin manage profiles" on public.admin_profiles;
 
 create policy "admin read categories" on public.knowledge_categories
   for select using (public.is_admin());
@@ -105,4 +124,10 @@ create policy "admin read messages" on public.chat_messages
   for select using (public.is_admin());
 
 create policy "admin write messages" on public.chat_messages
+  for all using (public.is_admin()) with check (public.is_admin());
+
+create policy "admin read own profile" on public.admin_profiles
+  for select using (user_id = auth.uid() or public.is_admin());
+
+create policy "admin manage profiles" on public.admin_profiles
   for all using (public.is_admin()) with check (public.is_admin());

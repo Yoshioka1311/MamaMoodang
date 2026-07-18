@@ -23,6 +23,7 @@ export default {
           DEFAULT: 'hsl(var(--primary))',
           foreground: 'hsl(var(--primary-foreground))'
         },
+        destructive: 'hsl(var(--destructive))',
         medical: {
           blue: '#D9ECFB',
           mint: '#DDF2C0',

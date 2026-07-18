@@ -1,4 +1,3 @@
 @echo off
 setlocal
-cd /d "%~dp0mamamoodang-ai-kms"
-npm.cmd run dev -- --port 5174
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\start-kms.ps1"

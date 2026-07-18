@@ -11,6 +11,7 @@
   --muted-foreground: 219 12% 38%;
   --primary: 344 100% 78%;
   --primary-foreground: 0 0% 100%;
+  --destructive: 356 78% 53%;
   --border: 220 18% 88%;
   --input: 220 18% 88%;
   --ring: 344 100% 78%;
@@ -25,6 +26,7 @@
   --muted-foreground: 216 16% 75%;
   --primary: 344 100% 78%;
   --primary-foreground: 0 0% 100%;
+  --destructive: 356 72% 68%;
   --border: 219 18% 23%;
   --input: 219 18% 23%;
   --ring: 344 100% 78%;
